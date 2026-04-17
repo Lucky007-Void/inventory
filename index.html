@@ -1,30 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Jood Script Key Generator</title>
+    <title>Jood Admin - Key Generator</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; justify-content: center; padding-top: 50px; }
-        .card { background: #2a2a2a; padding: 20px; border-radius: 10px; width: 350px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        select, button, input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; }
-        button { background: #4CAF50; color: white; cursor: pointer; font-weight: bold; }
-        #result { background: #111; padding: 10px; word-break: break-all; color: #00ff00; font-family: monospace; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: white; display: flex; justify-content: center; padding-top: 50px; }
+        .card { background: #1e1e1e; padding: 30px; border-radius: 15px; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        h2 { text-align: center; color: #4CAF50; margin-bottom: 25px; }
+        select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; }
+        select { background: #333; color: white; }
+        button { background: #4CAF50; color: white; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #45a049; transform: translateY(-2px); }
+        #result { background: #000; padding: 15px; border-radius: 8px; margin-top: 20px; word-break: break-all; color: #00ff00; font-family: 'Courier New', Courier, monospace; border: 1px dashed #4CAF50; display: none; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Generate Key</h2>
+        <h2>Jood Key System</h2>
         <label>เลือกอายุการใช้งาน:</label>
         <select id="duration">
-            <option value="1">1 วัน</option>
-            <option value="7">7 วัน</option>
-            <option value="30">30 วัน</option>
+            <option value="1">1 วัน (24 ชั่วโมง)</option>
+            <option value="7">7 วัน (1 สัปดาห์)</option>
+            <option value="30">30 วัน (1 เดือน)</option>
         </select>
-        <button onclick="generateKey()">สร้าง Key ใหม่</button>
-        <div id="result">Key จะปรากฏที่นี่...</div>
+        <button id="genBtn" onclick="generateAndSave()">สร้างและบันทึกไป Firebase</button>
+        <div id="result"></div>
     </div>
 
     <script>
-        // ฟังก์ชันสร้าง Key แบบสุ่ม
+        // --- แก้ไขข้อมูลของคุณตรงนี้ ---
+        const DB_URL = "https://jood-af2d8-default-rtdb.asia-southeast1.firebasedatabase.app/keys";
+        const DB_SECRET = "ใส่_Database_Secret_ที่ก๊อปมาตรงนี้"; 
+
         function makeid(length) {
             let result = 'JOOD-';
             const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -35,25 +41,41 @@
             return result;
         }
 
-        function generateKey() {
+        async function generateAndSave() {
+            const btn = document.getElementById('genBtn');
+            const resDiv = document.getElementById('result');
             const days = document.getElementById('duration').value;
-            const newKey = makeid(8);
             
-            // คำนวณเวลาหมดอายุ (ปัจจุบัน + วินาทีตามจำนวนวัน)
+            btn.disabled = true;
+            btn.innerText = "กำลังบันทึก...";
+
+            const newKey = makeid(8);
             const expiryTimestamp = Math.floor(Date.now() / 1000) + (days * 24 * 60 * 60);
 
-            const data = {
-                [newKey]: {
-                    expiry: expiryTimestamp,
-                    duration: days + " Days"
-                }
-            };
+            const url = `${DB_URL}/${newKey}.json?auth=${DB_SECRET}`;
 
-            // แสดงผล (ในใช้งานจริงต้องใช้ Fetch API ส่งค่าไป Firebase)
-            document.getElementById('result').innerText = `Key: ${newKey}\nExpires: ${new Date(expiryTimestamp * 1000).toLocaleString()}`;
-            
-            console.log("ส่งข้อมูลนี้ไปที่ Database:", data);
-            alert("Copy Key นี้ไปใส่ใน Database ของคุณได้เลย!");
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT', // ใช้ PUT เพื่อสร้าง Node ใหม่ตามชื่อ Key
+                    body: JSON.stringify({
+                        expiry: expiryTimestamp,
+                        duration: days + " Days",
+                        created_at: new Date().toLocaleString()
+                    })
+                });
+
+                if (response.ok) {
+                    resDiv.style.display = "block";
+                    resDiv.innerText = `สร้างสำเร็จ!\nKey: ${newKey}\nหมดอายุ: ${new Date(expiryTimestamp * 1000).toLocaleString()}`;
+                } else {
+                    alert("เกิดข้อผิดพลาดในการเชื่อมต่อ Firebase");
+                }
+            } catch (err) {
+                alert("Error: " + err);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "สร้างและบันทึกไป Firebase";
+            }
         }
     </script>
 </body>
