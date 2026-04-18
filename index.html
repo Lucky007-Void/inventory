@@ -15,7 +15,7 @@
             --text-main: #ffffff;
             --text-dim: #94a3b8;
             --danger: #ef4444;
-            --success: #10b981; /* เพิ่มสีเขียวสำหรับ Reset */
+            --success: #10b981;
             --input-bg: rgba(255, 255, 255, 0.03);
         }
 
@@ -163,6 +163,7 @@
                     <div onclick="setDuration(1, '1 Day Access')">1 Day Access</div>
                     <div onclick="setDuration(7, '7 Days Access')">7 Days Access</div>
                     <div onclick="setDuration(30, '30 Days Access')">30 Days Access</div>
+                    <div onclick="setDuration(99999, 'Lifetime Access (INF)')">Lifetime Access (INF)</div>
                 </div>
             </div>
             <button class="btn-primary" onclick="generateAndSave()">Generate New Key</button>
@@ -208,6 +209,9 @@
     }
 
     function getCountdown(expiry) {
+        // หากค่า expiry สูงกว่าปี 2050 (Timestamp > 2500000000) ให้แสดงเป็น Infinite
+        if (expiry > 2500000000) return "∞ INFINITY";
+        
         const diff = expiry - Math.floor(Date.now() / 1000);
         if (diff <= 0) return "EXPIRED";
         const d = Math.floor(diff / 86400), h = Math.floor((diff % 86400) / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60;
@@ -262,7 +266,14 @@
 
     async function generateAndSave() {
         const key = 'JOOD-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-        const expiry = Math.floor(Date.now() / 1000) + (currentDuration * 86400);
+        let expiry;
+        
+        if (currentDuration === 99999) {
+            expiry = 3000000000; // ตั้งค่าไว้ปี 2065 (ถาวร)
+        } else {
+            expiry = Math.floor(Date.now() / 1000) + (currentDuration * 86400);
+        }
+
         await fetch(`${DB_URL}/${key}.json?auth=${DB_SECRET}`, { 
             method: 'PUT', 
             body: JSON.stringify({ expiry: expiry, hwid: "" }) 
@@ -272,7 +283,8 @@
 
     async function updateTime(key, currentExpiry, mode) {
         const days = parseInt(document.getElementById(`val-${key}`).value) || 0;
-        const newExpiry = mode === 'add' ? currentExpiry + (days * 86400) : currentExpiry - (days * 86400);
+        let newExpiry = mode === 'add' ? currentExpiry + (days * 86400) : currentExpiry - (days * 86400);
+        
         await fetch(`${DB_URL}/${key}/expiry.json?auth=${DB_SECRET}`, { method: 'PUT', body: JSON.stringify(newExpiry) });
         showToast("Time Updated"); fetchKeys();
     }
